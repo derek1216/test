@@ -68,6 +68,7 @@ th,td{border-bottom:1px solid var(--line);padding:6px 4px;text-align:left}
 .sheet{position:fixed;inset:0;z-index:20;background:rgba(0,0,0,.35);display:flex;align-items:flex-end;justify-content:center}
 .sheet .panel{background:var(--paper);width:100%;max-width:680px;border-radius:16px 16px 0 0;padding:16px max(16px,env(safe-area-inset-right,0px)) max(16px,env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px));display:flex;flex-direction:column;gap:12px;max-height:85vh;overflow:auto;box-sizing:border-box}
 .toast{position:fixed;left:50%;transform:translateX(-50%);top:calc(64px + env(safe-area-inset-top,0px));background:var(--ink);color:var(--paper);padding:8px 14px;border-radius:10px;z-index:30;font-size:.9rem;max-width:90vw}
+.syncBadge.warn{color:var(--pen);font-weight:700}
 .redpen{border-left:3px solid var(--pen);padding-left:10px}
 .hero-note{font-family:var(--f-display);font-size:1.15rem}
 details summary{cursor:pointer;font-weight:700}
@@ -82,7 +83,8 @@ details summary{cursor:pointer;font-weight:700}
 /* ===== 作文小教練 POC v0.1 =====
    規則來源：作文小教練 Skill與APP規劃書 + 我最敬佩的人 學習檢討（老師自我檢討）。
    迭代方式：回饋存在 db 的 feedback 集合；Claude 讀回饋後，可以改 config/coach.extraRules（不用重新發佈）或改這支程式。 */
-const APP_VERSION = "0.1";
+const APP_VERSION = "0.2";
+const APP_URL = "https://claude.ai/artifact/Qqn6vizsZjX64cD8PrXMpP";
 const RULES = `你是「作文小教練」，陪台灣國小生寫作文。用繁體中文、台灣用語，口氣溫暖、像朋友聊天。
 
 【鐵則：只引導，不代寫】
@@ -175,6 +177,47 @@ async function loadFromDb(){
   }catch(e){ console.warn(e); toast("讀取雲端資料失敗，先用手機裡的資料。"); }
 }
 
+/* ---------- live sync across devices ---------- */
+let booted = false, syncAt = 0, needsRender = false;
+function syncText(){
+  if(!booted) return "連線中…";
+  if(!db) return "⚠ 沒有連上雲端：紀錄只存在這支手機。請登入 Claude 後重新打開。";
+  return "☁ 雲端同步中・最後同步 " + (syncAt ? new Date(syncAt).toLocaleTimeString("zh-TW", { hour:"2-digit", minute:"2-digit" }) : "—") + "・同一個 Claude 帳號的手機、平板、電腦都看得到";
+}
+function updateSyncBadge(){ document.querySelectorAll(".syncBadge").forEach(el => { el.textContent = syncText(); el.classList.toggle("warn", booted && !db); }); }
+function softRender(){
+  const a = document.activeElement;
+  if(busy || (a && /^(TEXTAREA|INPUT|SELECT)$/.test(a.tagName)) || $("#sheet").innerHTML){ needsRender = true; return; }
+  needsRender = false;
+  if(view.screen === "essay" && !store.essays[view.essayId]) view = { screen:"home" };
+  const y = window.scrollY; render(true); if(view.screen !== "essay" || view.tab !== "coach") window.scrollTo(0, y);
+  if(view.screen === "parent") bindParent();
+  if(view.screen === "new") bindNew();
+}
+document.addEventListener("focusout", () => setTimeout(() => { if(needsRender) softRender(); }, 300));
+const isMine = path => !!(pending[path] || running[path]);
+function subscribeAll(){
+  if(!db) return;
+  const done = changed => { syncAt = Date.now(); lsSave(); updateSyncBadge(); if(changed) softRender(); };
+  const onErr = e => { console.warn("sync", e); toast("即時同步中斷，重新打開 APP 就會恢復。", 4000); };
+  db.collection("essays").onSnapshot(snap => {
+    let changed = false;
+    for(const ch of snap.docChanges()){
+      if(ch.type === "removed" || ch.doc.metadata.hasPendingWrites) continue;
+      const e = ch.doc.data(), mine = store.essays[e.id];
+      if(isMine("essays/" + e.id) || (mine && (mine.updatedAt || 0) >= (e.updatedAt || 0))) continue;
+      store.essays[e.id] = e; changed = true;
+    }
+    done(changed);
+  }, onErr);
+  db.doc("profile/main").onSnapshot(d => {
+    if(!d.exists || d.metadata.hasPendingWrites || isMine("profile/main") || (d.data().updatedAt || 0) <= (store.profile.updatedAt || 0)) return done(false);
+    store.profile = { ...store.profile, ...d.data() }; done(true);
+  }, onErr);
+  db.doc("config/coach").onSnapshot(d => { if(d.exists){ store.coach = { extraRules:[], ...d.data() }; } done(false); }, onErr);
+  db.collection("feedback").orderBy("createdAt", "desc").limit(100).onSnapshot(q => { store.feedback = q.docs.map(d => d.data()); done(view.screen === "parent"); }, onErr);
+}
+
 /* ---------- coach prompt ---------- */
 function stageOf(e){
   if(e.result) return "完成";
@@ -225,13 +268,13 @@ async function askCoach(text, { hidden = false } = {}){
 }
 
 /* ---------- screens ---------- */
-function render(){
+function render(keepScroll){
   const app = $("#app");
   if(view.screen === "home") app.innerHTML = homeHTML();
   else if(view.screen === "new") app.innerHTML = newHTML();
   else if(view.screen === "essay") { app.innerHTML = essayHTML(); renderTab(); }
   else if(view.screen === "parent") app.innerHTML = parentHTML();
-  window.scrollTo(0, 0);
+  if(!keepScroll) window.scrollTo(0, 0);
 }
 function topbar(title, back){
   return `<header class="top">${back ? `<button class="ghost" data-act="home" aria-label="回首頁">‹ 首頁</button>` : ""}<h1>${esc(title)}</h1><button class="ghost" data-act="feedback">回饋</button></header>`;
@@ -253,7 +296,8 @@ function homeHTML(){
     ${done.length ? `<div class="tablewrap"><table><thead><tr><th>日期</th><th>題目</th><th>字數</th><th>「很」</th><th>新詞</th></tr></thead><tbody>${done.map(e => `<tr><td>${new Date(e.createdAt).toLocaleDateString("zh-TW")}</td><td>${esc(e.title)}</td><td>${e.result.total}/${totalTarget(e)}</td><td>${e.result.hen}</td><td>${(e.result.newWords || []).length}</td></tr>`).join("")}</tbody></table></div>` : `<p class="muted">完成第一篇後，這裡會記錄字數、「很」字次數和新學會的詞，看得到進步。</p>`}
   </div>
   <button class="ghost" data-act="parent">家長區（設定與回饋紀錄）</button>
-  <p class="muted" style="text-align:center">v${APP_VERSION}${store.coach.version ? "・教練規則 " + esc(store.coach.version) : ""}${db ? "" : "・離線模式（只存在這支手機）"}</p>
+  <p class="muted syncBadge" style="text-align:center">${esc(syncText())}</p>
+  <p class="muted" style="text-align:center">v${APP_VERSION}${store.coach.version ? "・教練規則 " + esc(store.coach.version) : ""}</p>
   </div>`;
 }
 function newHTML(){
@@ -347,6 +391,17 @@ function resultHTML(){
 function parentHTML(){
   const P = store.profile, fb = store.feedback;
   return `<div class="wrap">${topbar("家長區", true)}
+  <p class="muted syncBadge">${esc(syncText())}</p>
+  <div class="card"><h2>裝到安卓手機</h2>
+    <ol>
+      <li>用 <b>Chrome</b> 打開下面的網址，確認已經登入你的 Claude 帳號。</li>
+      <li>點右上角「⋮」→「加到主畫面」。</li>
+      <li>如果出現「安裝」和「建立捷徑」兩個選項，選<b>「建立捷徑」</b>，名稱打「作文小教練」。（選「安裝」會變成打開 Claude 首頁。）</li>
+      <li>主畫面出現圖示，之後點它就直接進來。</li>
+    </ol>
+    <div class="row"><code class="grow" id="appUrl" style="word-break:break-all;user-select:all">${APP_URL}</code><button data-act="copyUrl">複製網址</button></div>
+    <p class="muted">換裝置也一樣：在平板或電腦登入<b>同一個 Claude 帳號</b>打開這個網址，就會看到一樣的作文、詞語銀行和回饋紀錄。</p>
+  </div>
   <form class="card" id="profForm"><h2>設定</h2>
     <div class="row"><label class="grow">孩子的名字<input id="pName" value="${esc(P.name)}"></label>
     <label class="grow">年級<select id="pGrade">${[0,1,2,3,4,5,6].map(n => `<option value="${n}" ${n == P.grade ? "selected" : ""}>${n ? n + " 年級" : "未設定"}</option>`).join("")}</select></label></div>
@@ -408,6 +463,7 @@ document.addEventListener("click", async ev => {
   else if(act === "done"){ const e = store.essays[view.essayId], i = +b.dataset.para; e.paras[i].done = !e.paras[i].done; saveEssay(e); render(); }
   else if(act === "review" || act === "rereview"){ if(act === "rereview"){ const e = store.essays[view.essayId]; delete e.result; saveEssay(e); render(); } review(); }
   else if(act === "mic") startMic(b.dataset.target, b);
+  else if(act === "copyUrl"){ try{ await navigator.clipboard.writeText(APP_URL); toast("已複製網址"); }catch(e){ const r = document.createRange(); r.selectNodeContents($("#appUrl")); const sel = getSelection(); sel.removeAllRanges(); sel.addRange(r); toast("請長按選取的網址複製"); } }
 });
 document.addEventListener("input", ev => {
   const el = ev.target; if(el.dataset.para === undefined || !el.dataset.field) return;
@@ -486,12 +542,14 @@ function bindParent(){
 /* ---------- boot ---------- */
 lsLoad(); render();
 (async () => {
-  if(!window.claude?.use){ toast("請在 Claude 裡打開這個 APP，教練才能說話。", 5000); return; }
+  if(!window.claude?.use){ booted = true; updateSyncBadge(); toast("請在 Claude 裡打開這個 APP，教練才能說話。", 5000); return; }
   const [d, s, m] = await Promise.all([claude.use("db"), claude.use("sample"), claude.use("dictation")]);
   db = d; sample = s; dict = m;
   if(sample){ const lim = await sample.limits().catch(() => null); imgOK = !!lim?.images; }
+  booted = true;
   await loadFromDb();
-  if(view.screen === "home" || view.screen === "parent") render();
-  else if(view.screen === "essay") renderTab();
+  syncAt = db ? Date.now() : 0;
+  softRender(); updateSyncBadge();
+  subscribeAll();
 })();
 </script>
