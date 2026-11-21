@@ -1,0 +1,497 @@
+<title>作文小教練</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=LXGW+WenKai+TC:wght@400;700&family=Noto+Sans+TC:wght@400;500;700&display=swap">
+<style>
+/* Layout: one-column phone app. A manuscript-paper (稿紙) world: green grid ink, red "teacher pen" for corrections. */
+:root{
+  --paper:#f6f8f4; --card:#ffffff; --ink:#1f2a24; --muted:#5d6b62; --line:#d5e0d6;
+  --grid:#2f7a55; --grid-soft:#e3f0e8; --pen:#c8412f; --pen-soft:#fbe9e5; --gold:#b98a1b;
+  --f-display:"LXGW WenKai TC","Kaiti TC","STKaiti","DFKai-SB",serif;
+  --f-body:"Noto Sans TC","PingFang TC","Microsoft JhengHei",system-ui,sans-serif;
+  --r:12px;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --paper:#141a16; --card:#1c241f; --ink:#e7eee9; --muted:#9fb0a5; --line:#2e3a33;
+  --grid:#6cc195; --grid-soft:#1f3328; --pen:#ff8a75; --pen-soft:#3a221d; --gold:#e3b94e; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --paper:#141a16; --card:#1c241f; --ink:#e7eee9; --muted:#9fb0a5; --line:#2e3a33;
+  --grid:#6cc195; --grid-soft:#1f3328; --pen:#ff8a75; --pen-soft:#3a221d; --gold:#e3b94e; color-scheme:dark}
+html,body{height:100%}
+body{background:var(--paper);color:var(--ink);font-family:var(--f-body);font-size:16px;line-height:1.65}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--paper)}
+.wrap{max-width:680px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:12px 190px;display:flex;flex-direction:column;gap:16px}
+header.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--paper);display:flex;align-items:center;gap:8px;padding-block:8px;border-bottom:1px solid var(--line)}
+header.top h1{font-family:var(--f-display);font-size:1.35rem;margin:0;flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-wrap:balance}
+h2{font-family:var(--f-display);font-size:1.2rem;margin:0}
+h3{font-size:1rem;margin:0}
+button{font:inherit;cursor:pointer;border-radius:10px;border:1px solid var(--line);background:var(--card);color:var(--ink);padding:8px 12px;min-height:40px}
+button:focus-visible,input:focus-visible,textarea:focus-visible,select:focus-visible{outline:3px solid var(--grid);outline-offset:2px}
+button.primary{background:var(--grid);border-color:var(--grid);color:var(--paper);font-weight:700}
+button.ghost{background:transparent;border-color:transparent;color:var(--muted)}
+button.pen{color:var(--pen);border-color:var(--pen)}
+button:disabled{opacity:.5;cursor:default}
+input,textarea,select{font:inherit;color:var(--ink);background:var(--card);border:1px solid var(--line);border-radius:10px;padding:8px 10px;width:100%;box-sizing:border-box}
+textarea{resize:vertical;min-height:120px;line-height:1.9}
+label{display:flex;flex-direction:column;gap:4px;font-size:.9rem;color:var(--muted)}
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:16px;display:flex;flex-direction:column;gap:12px;min-width:0}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.grow{flex:1;min-width:0}
+.muted{color:var(--muted);font-size:.9rem}
+.tabs{display:grid;grid-template-columns:repeat(3,1fr);gap:4px;background:var(--grid-soft);padding:4px;border-radius:12px}
+.tabs button{border:none;background:transparent;min-height:40px;font-weight:500}
+.tabs button[aria-selected="true"]{background:var(--card);color:var(--grid);font-weight:700;box-shadow:0 1px 2px rgba(0,0,0,.08)}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{border-radius:999px;padding:4px 12px;min-height:32px;font-size:.9rem;background:var(--grid-soft);border-color:transparent;color:var(--ink)}
+.word{border-radius:999px;padding:2px 10px;font-size:.9rem;background:var(--grid-soft);font-family:var(--f-display)}
+/* chat */
+.chat{display:flex;flex-direction:column;gap:10px;min-height:200px}
+.msg{max-width:88%;padding:10px 12px;border-radius:14px;white-space:pre-wrap;word-break:break-word}
+.msg.coach{align-self:flex-start;background:var(--card);border:1px solid var(--line);border-top-left-radius:4px;font-family:var(--f-display);font-size:1.08rem}
+.msg.kid{align-self:flex-end;background:var(--grid);color:var(--paper);border-top-right-radius:4px}
+.msg .fb{display:flex;gap:4px;margin-top:6px}
+.msg .fb button{min-height:28px;padding:0 8px;font-size:.8rem;font-family:var(--f-body)}
+.composer{position:fixed;left:0;right:0;bottom:0;z-index:6;background:var(--paper);border-top:1px solid var(--line);padding-bottom:max(8px,env(safe-area-inset-bottom,0px));padding-top:8px}
+.composer .inner{max-width:680px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));display:flex;flex-direction:column;gap:6px}
+.composer textarea{min-height:44px;height:44px;line-height:1.5}
+/* manuscript paragraph */
+.para textarea{background-image:linear-gradient(var(--grid-soft) 1px,transparent 1px);background-size:100% 1.9em;background-attachment:local}
+.count{font-variant-numeric:tabular-nums;font-weight:700}
+.count.over{color:var(--pen)} .count.ok{color:var(--grid)}
+.badge{font-size:.78rem;padding:2px 8px;border-radius:999px;background:var(--grid-soft);color:var(--grid);font-weight:700;white-space:nowrap}
+.badge.pen{background:var(--pen-soft);color:var(--pen)}
+.stars{color:var(--gold);letter-spacing:2px}
+table{border-collapse:collapse;width:100%;font-size:.9rem;font-variant-numeric:tabular-nums}
+th,td{border-bottom:1px solid var(--line);padding:6px 4px;text-align:left}
+.tablewrap{overflow-x:auto}
+.essay-item{display:flex;align-items:center;gap:8px;text-align:left;width:100%}
+.sheet{position:fixed;inset:0;z-index:20;background:rgba(0,0,0,.35);display:flex;align-items:flex-end;justify-content:center}
+.sheet .panel{background:var(--paper);width:100%;max-width:680px;border-radius:16px 16px 0 0;padding:16px max(16px,env(safe-area-inset-right,0px)) max(16px,env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px));display:flex;flex-direction:column;gap:12px;max-height:85vh;overflow:auto;box-sizing:border-box}
+.toast{position:fixed;left:50%;transform:translateX(-50%);top:calc(64px + env(safe-area-inset-top,0px));background:var(--ink);color:var(--paper);padding:8px 14px;border-radius:10px;z-index:30;font-size:.9rem;max-width:90vw}
+.redpen{border-left:3px solid var(--pen);padding-left:10px}
+.hero-note{font-family:var(--f-display);font-size:1.15rem}
+details summary{cursor:pointer;font-weight:700}
+@media (prefers-reduced-motion:no-preference){.msg{animation:pop .18s ease-out}@keyframes pop{from{transform:translateY(4px);opacity:.6}to{transform:none;opacity:1}}}
+</style>
+
+<div id="app"></div>
+<div id="sheet"></div>
+<div id="toast" class="toast" hidden></div>
+
+<script>
+/* ===== 作文小教練 POC v0.1 =====
+   規則來源：作文小教練 Skill與APP規劃書 + 我最敬佩的人 學習檢討（老師自我檢討）。
+   迭代方式：回饋存在 db 的 feedback 集合；Claude 讀回饋後，可以改 config/coach.extraRules（不用重新發佈）或改這支程式。 */
+const APP_VERSION = "0.1";
+const RULES = `你是「作文小教練」，陪台灣國小生寫作文。用繁體中文、台灣用語，口氣溫暖、像朋友聊天。
+
+【鐵則：只引導，不代寫】
+1. 孩子的文章必須是孩子自己的字。絕對不要寫出可以直接抄進作文的完整句子，也不要給「三個完整句子讓她選」。
+2. 真的卡住時，最多給「句型骨架＋空格」，例如：「＿＿就像＿＿一樣，＿＿。」或只給一兩個詞語提示，讓她自己填。
+3. 一次只問一個問題。回覆最多三句話，簡短，不要長篇大論。
+4. 每一段寫完，先具體稱讚一個優點，再只挑「一個」地方建議升級，用商量的語氣（例如：「『飛』改成『射』，你看是不是更準？」）。不要一次改很多。
+5. 字數只看【目前狀態】裡系統算好的數字，不要自己估算字數。超過或不足時直接講系統的數字。
+6. 問題要貼近她當時真的在場的經驗：先問「那時候你在哪裡？看到什麼？聽到什麼？」，不要問她不可能看到的事。鼓勵寫真的事，不要為了好聽亂編。
+7. 同一個題材問兩輪還是想不出內容，就主動提議換一個方向或換一件事。
+8. 【已確認的事】裡的事情不要再問一次。
+9. 她送出訊息就代表她說完了；不要催促。
+10. 不要用表情符號洗版，最多一個。
+
+【寫作方法（依年級調整）】
+- 低年級：先把一件事說完整。中年級：加入五感描寫、譬喻、擬人。高年級：段落結構和感想深度。
+- 六何法想材料：誰、什麼時候、在哪裡、做什麼、為什麼、怎麼做，一題一題問。
+- 寫不長通常是不會拆：把看到、聽到、聞到、摸到、心裡想的拆開來問。
+- 形容詞升級階梯：「很漂亮」→「亮晶晶的」→「像剛洗過的玻璃一樣亮晶晶」，一次只升一級。用五感提問讓她自己說出形容詞，不要直接給答案。
+- 「很」字禁用遊戲：看到「很開心、很好吃」，問她「開心的時候你做了什麼動作？」讓她換成動作或畫面。
+- 可以提醒她用【詞語銀行】裡以前學會的詞。
+- 修辭不是越多越好，先看清楚、感受清楚。
+
+【記住重要的事】
+如果她在這次回答中確認了一件之後寫作會用到的事實或決定（例如：「第三段要寫除法小考後在車上哭」），在回覆最後另起一行寫：
+【記住】一句話摘要
+這一行孩子看不到，系統會存起來。沒有就不要寫。`;
+
+const TYPES = ["寫人","寫事","寫物","寫景","其他"];
+const STAR_KEYS = ["審題切題","內容具體","段落結構","用詞與形容詞","修辭","標點與錯字","真情實感"];
+
+/* ---------- helpers ---------- */
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const countChars = s => (s || "").replace(/\s/g, "").length;
+const countHen = s => ((s || "").match(/很/g) || []).length;
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+const today = () => new Date().toLocaleDateString("zh-TW");
+function toast(msg, ms = 2600){ const t = $("#toast"); t.textContent = msg; t.hidden = false; clearTimeout(toast._t); toast._t = setTimeout(() => t.hidden = true, ms); }
+const ERR = {
+  not_granted:"還沒有允許這個 APP 使用 Claude。請家長重新打開頁面，按「允許」。",
+  sampling_disabled:"這個帳號目前不能使用 Claude。",
+  rate_limited:"教練有點忙（用量到上限），休息一下再試。",
+  session_expired:"登入過期了，請重新登入 Claude。",
+  refused:"教練沒辦法回答這句，換個說法試試。",
+  upstream_error:"連線中斷了，請再按一次。",
+  image_rejected:"這張照片讀不了，換一張清楚一點的。",
+  images_unavailable:"這裡不能傳照片，請改用打字。",
+  invalid_json:"評語格式出錯，請再按一次。",
+};
+const errMsg = e => ERR[e?.code] || ("發生問題：" + (e?.code || e?.message || e));
+
+/* ---------- state & storage ---------- */
+let db = null, sample = null, dict = null, imgOK = false;
+let store = { profile:{ name:"", grade:0, tier:"quick", wordBank:[], updatedAt:0 }, essays:{}, feedback:[], coach:{ extraRules:[] } };
+let view = { screen:"home", essayId:null, tab:"coach" };
+const LS = "zwcoach-v1";
+function lsSave(){ try{ localStorage.setItem(LS, JSON.stringify({ profile:store.profile, essays:store.essays })); }catch(e){} }
+function lsLoad(){ try{ const d = JSON.parse(localStorage.getItem(LS) || "null"); if(d){ store.profile = { ...store.profile, ...d.profile }; store.essays = d.essays || {}; } }catch(e){} }
+
+const pending = {}, running = {};
+function persist(path, data){ pending[path] = JSON.parse(JSON.stringify(data)); lsSave(); if(!running[path]) flush(path); }
+async function flush(path){
+  running[path] = true;
+  while(pending[path]){
+    const d = pending[path]; delete pending[path];
+    if(!db) break;
+    try{ await db.doc(path).set(d); }
+    catch(e){ console.warn(path, e); toast("雲端儲存失敗（" + e.code + "），已先存在這支手機。"); }
+  }
+  running[path] = false;
+}
+const saveEssay = e => { e.updatedAt = Date.now(); store.essays[e.id] = e; persist("essays/" + e.id, e); };
+const saveProfile = () => { store.profile.updatedAt = Date.now(); persist("profile/main", store.profile); };
+
+async function loadFromDb(){
+  if(!db) return;
+  try{
+    const [p, es, fb, cc] = await Promise.all([
+      db.doc("profile/main").get(), db.collection("essays").get(),
+      db.collection("feedback").orderBy("createdAt","desc").limit(100).get(), db.doc("config/coach").get()
+    ]);
+    if(p.exists && (p.data().updatedAt || 0) >= (store.profile.updatedAt || 0)) store.profile = { ...store.profile, ...p.data() };
+    else if(store.profile.updatedAt) saveProfile();
+    for(const d of es.docs){ const e = d.data(); const mine = store.essays[e.id]; if(!mine || (e.updatedAt||0) >= (mine.updatedAt||0)) store.essays[e.id] = e; }
+    for(const e of Object.values(store.essays)) if(!es.docs.find(d => d.id === e.id)) persist("essays/" + e.id, e);
+    store.feedback = fb.docs.map(d => d.data());
+    if(cc.exists) store.coach = { extraRules:[], ...cc.data() };
+    lsSave();
+  }catch(e){ console.warn(e); toast("讀取雲端資料失敗，先用手機裡的資料。"); }
+}
+
+/* ---------- coach prompt ---------- */
+function stageOf(e){
+  if(e.result) return "完成";
+  if(e.paras.some(p => !p.idea.trim())) return "想材料與列大綱（還有段落沒有重點）";
+  const i = e.paras.findIndex(p => !p.done);
+  return i < 0 ? "全部段落寫完，準備整篇檢查" : `寫第${i+1}段`;
+}
+function statusText(e){
+  const P = store.profile;
+  const paras = e.paras.map((p, i) => `第${i+1}段：目標${p.target}字｜重點：${p.idea || "（還沒想）"}｜已寫${countChars(p.text)}字${p.done ? "（已完成）" : ""}\n內文：${p.text || "（空白）"}`).join("\n");
+  return `【目前狀態】
+學生：${P.name || "同學"}，${e.grade}年級
+題目：「${e.title}」（${e.type}）
+目前階段：${stageOf(e)}
+全文目前 ${totalChars(e)} 字／目標 ${totalTarget(e)} 字（系統精算，含標點）
+${paras}
+【已確認的事】${(e.confirmed || []).length ? "\n- " + e.confirmed.join("\n- ") : "（無）"}
+【詞語銀行】${(P.wordBank || []).slice(-30).map(w => w.word).join("、") || "（無）"}`;
+}
+const totalChars = e => e.paras.reduce((s, p) => s + countChars(p.text), 0);
+const totalTarget = e => e.paras.reduce((s, p) => s + p.target, 0);
+function coachRules(){
+  const extra = (store.coach.extraRules || []).filter(Boolean);
+  return RULES + (extra.length ? "\n\n【依照之前使用回饋新增的規則（優先遵守）】\n- " + extra.join("\n- ") : "");
+}
+
+let busy = false, ctl = null;
+async function askCoach(text, { hidden = false } = {}){
+  const e = store.essays[view.essayId]; if(!e || busy) return;
+  if(!sample){ toast("教練還沒連上（請在 Claude 裡打開這個 APP）。"); return; }
+  e.chat.push({ role:"user", content:text, t:Date.now(), hidden });
+  saveEssay(e); busy = true; renderChat();
+  const bubble = document.querySelector("#typing");
+  const turns = e.chat.slice(-18).map(m => ({ role:m.role, content:m.content }));
+  if(turns[0]?.role === "assistant") turns.shift();
+  const input = [{ role:"user", content: coachRules() + "\n\n" + statusText(e) + "\n\n（以下是你和孩子的對話。請回覆最後一則。）" }, ...turns];
+  ctl = new AbortController();
+  try{
+    const { text: out } = await sample(input, { cache:false, signal:ctl.signal, modelTier: store.profile.tier || "quick",
+      onText: ({ text }) => { if(bubble) bubble.textContent = text.replace(/【記住】.*$/gm, "").trim(); } });
+    const mem = [...out.matchAll(/【記住】\s*(.+)/g)].map(m => m[1].trim());
+    if(mem.length){ e.confirmed = [...(e.confirmed || []), ...mem].slice(-30); }
+    e.chat.push({ role:"assistant", content: out.replace(/【記住】.*$/gm, "").trim(), t:Date.now() });
+  }catch(err){
+    if(err.code !== "cancelled") toast(errMsg(err), 4000);
+    if(err.text) e.chat.push({ role:"assistant", content: err.text.replace(/【記住】.*$/gm, "").trim() + "（中斷）", t:Date.now() });
+  }finally{ busy = false; saveEssay(e); renderChat(); }
+}
+
+/* ---------- screens ---------- */
+function render(){
+  const app = $("#app");
+  if(view.screen === "home") app.innerHTML = homeHTML();
+  else if(view.screen === "new") app.innerHTML = newHTML();
+  else if(view.screen === "essay") { app.innerHTML = essayHTML(); renderTab(); }
+  else if(view.screen === "parent") app.innerHTML = parentHTML();
+  window.scrollTo(0, 0);
+}
+function topbar(title, back){
+  return `<header class="top">${back ? `<button class="ghost" data-act="home" aria-label="回首頁">‹ 首頁</button>` : ""}<h1>${esc(title)}</h1><button class="ghost" data-act="feedback">回饋</button></header>`;
+}
+function homeHTML(){
+  const P = store.profile, es = Object.values(store.essays).sort((a, b) => b.updatedAt - a.updatedAt);
+  const done = es.filter(e => e.result);
+  return `<div class="wrap">${topbar("作文小教練")}
+  <div class="card">
+    <p class="hero-note">${P.name ? esc(P.name) + "，" : ""}今天想寫哪一篇？</p>
+    <p class="muted">教練只會問問題、給提示，字都由你自己寫。</p>
+    <button class="primary" data-act="new">開始新作文</button>
+  </div>
+  ${es.length ? `<div class="card"><h2>我的作文</h2>${es.map(e => `<button class="essay-item" data-act="open" data-id="${e.id}"><span class="grow"><b>${esc(e.title)}</b><br><span class="muted">${esc(e.type)}・${new Date(e.createdAt).toLocaleDateString("zh-TW")}・${totalChars(e)}/${totalTarget(e)}字</span></span><span class="badge ${e.result ? "" : "pen"}">${e.result ? "完成" : "寫作中"}</span></button>`).join("")}</div>` : ""}
+  <div class="card"><h2>詞語銀行</h2>
+    ${(P.wordBank || []).length ? `<div class="chips">${P.wordBank.map(w => `<span class="word">${esc(w.word)}</span>`).join("")}</div>` : `<p class="muted">每寫完一篇，用得好的形容詞會存在這裡，下次教練會提醒你用。</p>`}
+  </div>
+  <div class="card"><h2>進步紀錄</h2>
+    ${done.length ? `<div class="tablewrap"><table><thead><tr><th>日期</th><th>題目</th><th>字數</th><th>「很」</th><th>新詞</th></tr></thead><tbody>${done.map(e => `<tr><td>${new Date(e.createdAt).toLocaleDateString("zh-TW")}</td><td>${esc(e.title)}</td><td>${e.result.total}/${totalTarget(e)}</td><td>${e.result.hen}</td><td>${(e.result.newWords || []).length}</td></tr>`).join("")}</tbody></table></div>` : `<p class="muted">完成第一篇後，這裡會記錄字數、「很」字次數和新學會的詞，看得到進步。</p>`}
+  </div>
+  <button class="ghost" data-act="parent">家長區（設定與回饋紀錄）</button>
+  <p class="muted" style="text-align:center">v${APP_VERSION}${store.coach.version ? "・教練規則 " + esc(store.coach.version) : ""}${db ? "" : "・離線模式（只存在這支手機）"}</p>
+  </div>`;
+}
+function newHTML(){
+  const g = store.profile.grade || "";
+  return `<div class="wrap">${topbar("新作文", true)}
+  <form class="card" id="newForm">
+    <label>作文題目<input id="nTitle" required placeholder="例如：我最敬佩的人"></label>
+    <div class="row">
+      <label class="grow">類型<select id="nType">${TYPES.map(t => `<option>${t}</option>`).join("")}</select></label>
+      <label class="grow">年級<select id="nGrade" required><option value="">選擇</option>${[1,2,3,4,5,6].map(n => `<option value="${n}" ${n == g ? "selected" : ""}>${n} 年級</option>`).join("")}</select></label>
+    </div>
+    <div class="row">
+      <label class="grow">稿紙每行幾格<input id="nPer" type="number" min="5" max="30" value="13"></label>
+      <label class="grow">分幾段<select id="nParas">${[3,4,5,6].map(n => `<option ${n === 4 ? "selected" : ""}>${n}</option>`).join("")}</select></label>
+    </div>
+    <label>每段大約寫幾行（用逗號隔開）<input id="nLines" value="8,10,10,8"></label>
+    <p class="muted" id="nHint"></p>
+    <button class="primary" type="submit">開始</button>
+  </form></div>`;
+}
+function essayHTML(){
+  const e = store.essays[view.essayId];
+  const tabs = [["coach","教練"],["draft","我的稿子"],["result","完成評語"]];
+  return `<div class="wrap">${topbar(e.title, true)}
+  <div class="row"><span class="badge">${esc(stageOf(e))}</span><span class="muted grow" style="text-align:right">全文 <span class="count ${totalChars(e) > totalTarget(e) ? "over" : ""}">${totalChars(e)}</span> / ${totalTarget(e)} 字</span></div>
+  <div class="tabs" role="tablist">${tabs.map(([k, n]) => `<button role="tab" aria-selected="${view.tab === k}" data-act="tab" data-tab="${k}">${n}</button>`).join("")}</div>
+  <div id="tabBody" style="display:flex;flex-direction:column;gap:16px"></div></div>
+  <div id="composerSlot"></div>`;
+}
+function renderTab(){
+  const body = $("#tabBody"), slot = $("#composerSlot"); if(!body) return;
+  slot.innerHTML = "";
+  if(view.tab === "coach"){ body.innerHTML = `<div class="chat" id="chat"></div>`; slot.innerHTML = composerHTML(); renderChat(); }
+  else if(view.tab === "draft") body.innerHTML = draftHTML();
+  else body.innerHTML = resultHTML();
+}
+function composerHTML(){
+  return `<div class="composer"><div class="inner">
+    <div class="chips" id="quick">${["我想不到","這題我聽不懂","換一個方向","我寫好一段了，幫我看"].map(q => `<button class="chip" data-act="quick" data-q="${q}">${q}</button>`).join("")}</div>
+    <div class="row"><textarea id="say" class="grow" placeholder="跟教練說…" rows="1"></textarea>
+    ${dict ? `<button data-act="mic" data-target="say" aria-label="用說的">🎤</button>` : ""}
+    <button class="primary" data-act="send">送出</button></div></div></div>`;
+}
+function renderChat(){
+  const c = $("#chat"); if(!c) return;
+  const e = store.essays[view.essayId];
+  const msgs = e.chat.filter(m => !m.hidden);
+  c.innerHTML = msgs.map((m, i) => m.role === "assistant"
+    ? `<div class="msg coach">${esc(m.content)}<div class="fb"><button data-act="rate" data-v="good" data-t="${m.t}">👍 好</button><button data-act="rate" data-v="bad" data-t="${m.t}">👎 不好</button></div></div>`
+    : `<div class="msg kid">${esc(m.content)}</div>`).join("")
+    + (busy ? `<div class="msg coach" id="typing">教練在想…</div>` : "")
+    + (!msgs.length && !busy ? `<p class="muted">按下面的按鈕或打字，和教練開始聊。</p>` : "");
+  document.querySelectorAll("[data-act=send],[data-act=quick]").forEach(b => b.disabled = busy);
+  setTimeout(() => window.scrollTo(0, document.body.scrollHeight), 30);
+}
+function draftHTML(){
+  const e = store.essays[view.essayId];
+  return e.paras.map((p, i) => {
+    const n = countChars(p.text);
+    return `<div class="card para">
+      <div class="row"><h3 class="grow">第 ${i+1} 段</h3><span class="count ${n > p.target ? "over" : n >= p.target * .85 ? "ok" : ""}" id="cnt${i}">${n} / ${p.target} 字</span>${p.done ? `<span class="badge">完成</span>` : ""}</div>
+      <label>這段要寫什麼（重點，一句話）<input data-para="${i}" data-field="idea" value="${esc(p.idea)}" placeholder="例如：介紹媽媽，她很會教數學"></label>
+      <textarea data-para="${i}" data-field="text" placeholder="在這裡寫，或拍下手寫稿">${esc(p.text)}</textarea>
+      <div class="row">
+        ${imgOK ? `<label class="chip" style="flex-direction:row;cursor:pointer;color:var(--ink)">📷 拍手寫稿<input type="file" accept="image/*" capture="environment" data-act="photo" data-para="${i}" hidden></label>` : ""}
+        ${dict ? `<button class="chip" data-act="mic" data-target="p${i}">🎤 用說的</button>` : ""}
+        <span class="grow"></span>
+        <button data-act="check" data-para="${i}">請教練看</button>
+        <button class="${p.done ? "ghost" : "primary"}" data-act="done" data-para="${i}">${p.done ? "再改改" : "這段完成"}</button>
+      </div></div>`;
+  }).join("") + `<p class="muted">字數由程式精算（含標點，不含空白）。「很」字目前出現 ${countHen(e.paras.map(p => p.text).join(""))} 次。</p>`;
+}
+function resultHTML(){
+  const e = store.essays[view.essayId], r = e.result;
+  if(!r){
+    const ready = e.paras.every(p => p.done);
+    return `<div class="card"><h2>整篇完成了嗎？</h2>
+      <p class="muted">${ready ? "每一段都完成了，可以請教練寫評語。" : "還有段落沒有按「這段完成」，也可以先試著看評語。"}</p>
+      <button class="primary" data-act="review" ${busy ? "disabled" : ""}>請教練寫評語</button><p class="muted" id="revNote"></p></div>`;
+  }
+  const stars = n => "★".repeat(n) + "☆".repeat(5 - n);
+  return `<div class="card"><h2>寫得好的地方</h2><ol>${r.praise.map(x => `<li>${esc(x)}</li>`).join("")}</ol></div>
+  <div class="card redpen"><h2>可以更好的地方</h2>${r.suggest.map(s => `<div><b>${esc(s.point)}</b><br><span class="muted">示範：</span>${esc(s.example)}</div>`).join("")}</div>
+  <div class="card"><h2>下次的小目標</h2><p class="hero-note">${esc(r.goal)}</p></div>
+  <div class="card"><h2>星星表</h2><div class="tablewrap"><table>${STAR_KEYS.map(k => `<tr><td>${k}</td><td class="stars">${stars(Math.max(0, Math.min(5, +r.stars?.[k] || 0)))}</td></tr>`).join("")}</table></div>
+    <p class="muted">全文 ${r.total} 字（目標 ${totalTarget(e)}）・「很」字 ${r.hen} 次</p>
+    ${(r.newWords || []).length ? `<div><b>存進詞語銀行：</b><div class="chips">${r.newWords.map(w => `<span class="word">${esc(w)}</span>`).join("")}</div></div>` : ""}</div>
+  <div class="card"><h2>這次用起來怎麼樣？</h2><p class="muted">寫下哪裡好用、哪裡卡住，下一版會照著改。</p><button class="primary" data-act="feedback">寫回饋</button>
+  <button class="ghost" data-act="rereview">重新產生評語</button></div>`;
+}
+function parentHTML(){
+  const P = store.profile, fb = store.feedback;
+  return `<div class="wrap">${topbar("家長區", true)}
+  <form class="card" id="profForm"><h2>設定</h2>
+    <div class="row"><label class="grow">孩子的名字<input id="pName" value="${esc(P.name)}"></label>
+    <label class="grow">年級<select id="pGrade">${[0,1,2,3,4,5,6].map(n => `<option value="${n}" ${n == P.grade ? "selected" : ""}>${n ? n + " 年級" : "未設定"}</option>`).join("")}</select></label></div>
+    <label>教練回覆速度<select id="pTier"><option value="quick" ${P.tier === "quick" ? "selected" : ""}>快速（建議，幾秒內回覆）</option><option value="default" ${P.tier === "default" ? "selected" : ""}>仔細（比較慢，可能要等半分鐘）</option></select></label>
+    <button class="primary" type="submit">儲存</button></form>
+  <div class="card"><h2>教練新增規則</h2><p class="muted">Claude 讀完回饋後會在這裡加規則，不用重裝 APP。</p>
+    ${(store.coach.extraRules || []).length ? `<ol>${store.coach.extraRules.map(r => `<li>${esc(r)}</li>`).join("")}</ol>` : `<p class="muted">目前沒有。</p>`}</div>
+  <div class="card"><h2>回饋紀錄（${fb.length}）</h2>
+    ${fb.length ? fb.map(f => `<div><span class="badge ${f.kind === "good" ? "" : "pen"}">${f.kind === "good" ? "好用" : f.kind === "stuck" ? "卡住" : "建議"}</span> <span class="muted">${esc(f.who)}・${new Date(f.createdAt).toLocaleString("zh-TW")}</span><br>${esc(f.text)}${f.context ? `<br><span class="muted">教練那句：${esc(f.context.slice(0, 80))}</span>` : ""}</div>`).join("<hr style='border:none;border-top:1px solid var(--line)'>") : `<p class="muted">還沒有回饋。</p>`}</div>
+  <div class="card"><h2>下一次怎麼改版</h2><p class="muted">回到 Claude 對話說：「讀一下作文小教練的回饋，幫我改版」。Claude 會讀這裡的紀錄，修改教練規則或 APP。</p></div>
+  </div>`;
+}
+
+/* ---------- feedback sheet ---------- */
+function openFeedback({ kind = "stuck", context = "", essayId = view.essayId } = {}){
+  $("#sheet").innerHTML = `<div class="sheet" data-act="closeSheet"><form class="panel" id="fbForm">
+    <h2>回饋給下一版</h2>
+    <div class="row"><label class="grow">是誰<select id="fWho"><option>${esc(store.profile.name || "孩子")}</option><option>家長</option></select></label>
+    <label class="grow">類型<select id="fKind"><option value="good" ${kind === "good" ? "selected" : ""}>好用</option><option value="stuck" ${kind === "stuck" ? "selected" : ""}>卡住／不好</option><option value="idea" ${kind === "idea" ? "selected" : ""}>建議</option></select></label></div>
+    ${context ? `<p class="muted redpen">教練那句：${esc(context.slice(0, 120))}</p>` : ""}
+    <label>說說看<textarea id="fText" required placeholder="例如：教練又直接給我句子了／問題太長看不懂／拍照很好用"></textarea></label>
+    <div class="row"><button type="button" class="ghost" data-act="closeSheet">取消</button><span class="grow"></span><button class="primary" type="submit">送出</button></div>
+  </form></div>`;
+  $("#fbForm").onsubmit = async ev => {
+    ev.preventDefault();
+    const f = { id:uid(), essayId: essayId || null, who:$("#fWho").value, kind:$("#fKind").value, text:$("#fText").value.trim(), context, appVersion:APP_VERSION, createdAt:Date.now() };
+    store.feedback.unshift(f); $("#sheet").innerHTML = "";
+    if(db) try{ await db.doc("feedback/" + f.id).set(f); }catch(e){ toast("回饋沒存到雲端：" + e.code); return; }
+    toast("收到了，謝謝！下一版會改。");
+  };
+}
+
+/* ---------- actions ---------- */
+let saveT = null;
+document.addEventListener("click", async ev => {
+  const b = ev.target.closest("[data-act]"); if(!b) return;
+  const act = b.dataset.act;
+  if(act === "closeSheet"){ if(ev.target === b || b.tagName === "BUTTON") $("#sheet").innerHTML = ""; return; }
+  if(act === "photo") return;
+  if(act === "home"){ view = { screen:"home" }; render(); }
+  else if(act === "new"){ view = { screen:"new" }; render(); bindNew(); }
+  else if(act === "parent"){ view = { screen:"parent" }; render(); bindParent(); }
+  else if(act === "open"){ view = { screen:"essay", essayId:b.dataset.id, tab: store.essays[b.dataset.id].result ? "result" : "coach" }; render(); }
+  else if(act === "tab"){ view.tab = b.dataset.tab; render(); }
+  else if(act === "feedback") openFeedback({});
+  else if(act === "rate"){
+    const e = store.essays[view.essayId], m = e.chat.find(x => String(x.t) === b.dataset.t);
+    if(b.dataset.v === "bad") openFeedback({ kind:"stuck", context:m?.content || "" });
+    else { const f = { id:uid(), essayId:e.id, who:store.profile.name || "孩子", kind:"good", text:"👍 這句好", context:m?.content || "", appVersion:APP_VERSION, createdAt:Date.now() };
+      store.feedback.unshift(f); if(db) db.doc("feedback/" + f.id).set(f).catch(() => {}); toast("記下來了 👍"); }
+  }
+  else if(act === "send"){ const t = $("#say").value.trim(); if(!t) return; $("#say").value = ""; askCoach(t); }
+  else if(act === "quick"){
+    const q = b.dataset.q;
+    if(q.startsWith("我寫好一段")){ const e = store.essays[view.essayId]; const i = e.paras.findIndex(p => !p.done && p.text.trim()); if(i < 0){ toast("先到「我的稿子」寫一段喔"); return; } askCoach(`我寫好第${i+1}段了，幫我看：\n${e.paras[i].text}`); }
+    else askCoach(q);
+  }
+  else if(act === "check"){ const e = store.essays[view.essayId], i = +b.dataset.para; if(!e.paras[i].text.trim()){ toast("先寫一點再請教練看"); return; } view.tab = "coach"; render(); askCoach(`我寫好第${i+1}段了，幫我看：\n${e.paras[i].text}`); }
+  else if(act === "done"){ const e = store.essays[view.essayId], i = +b.dataset.para; e.paras[i].done = !e.paras[i].done; saveEssay(e); render(); }
+  else if(act === "review" || act === "rereview"){ if(act === "rereview"){ const e = store.essays[view.essayId]; delete e.result; saveEssay(e); render(); } review(); }
+  else if(act === "mic") startMic(b.dataset.target, b);
+});
+document.addEventListener("input", ev => {
+  const el = ev.target; if(el.dataset.para === undefined || !el.dataset.field) return;
+  const e = store.essays[view.essayId], i = +el.dataset.para;
+  e.paras[i][el.dataset.field] = el.value;
+  if(el.dataset.field === "text"){ const n = countChars(el.value), c = $("#cnt" + i); c.textContent = `${n} / ${e.paras[i].target} 字`; c.className = "count " + (n > e.paras[i].target ? "over" : n >= e.paras[i].target * .85 ? "ok" : ""); }
+  clearTimeout(saveT); saveT = setTimeout(() => saveEssay(e), 1200);
+});
+document.addEventListener("change", async ev => {
+  const el = ev.target; if(el.dataset.act !== "photo" || !el.files?.[0]) return;
+  const i = +el.dataset.para, e = store.essays[view.essayId], file = el.files[0];
+  toast("正在讀照片裡的字…", 20000);
+  try{
+    const { text } = await sample(`這是一位國小生手寫的作文稿（稿紙）。請「逐字」抄寫成文字，保留原本的錯字、標點和用詞，不要修改、不要補字、不要加任何說明。看不清楚的字用□代替。只輸出抄寫的內文。`, { images:[file], modelTier:"default", cache:false });
+    e.paras[i].text = (e.paras[i].text ? e.paras[i].text + "\n" : "") + text.trim();
+    saveEssay(e); render(); toast("抄好了，請檢查有沒有讀錯的字（□是看不清楚的）。", 4000);
+  }catch(err){ toast(errMsg(err), 4000); }
+});
+
+let micOn = null, micEl = null, micBtn = null, micBound = false;
+async function startMic(target, btn){
+  if(!dict) return;
+  if(micOn){ await dict.stop().catch(() => {}); return; }
+  if(!micBound){
+    micBound = true;
+    dict.onFinal(({ text }) => { if(micOn && micEl){ micEl.value += text; micEl.dispatchEvent(new Event("input", { bubbles:true })); } });
+    dict.onState(({ state }) => { if(state === "idle"){ if(micBtn) micBtn.textContent = micOn === "say" ? "🎤" : "🎤 用說的"; micOn = null; } });
+  }
+  micEl = target === "say" ? $("#say") : document.querySelector(`textarea[data-para="${target.slice(1)}"]`);
+  micOn = target; micBtn = btn; btn.textContent = "⏹ 停";
+  dict.start().catch(e => { micOn = null; btn.textContent = target === "say" ? "🎤" : "🎤 用說的"; if(e.code !== "dismissed") toast("沒辦法用麥克風，請改用打字。"); });
+}
+
+async function review(){
+  const e = store.essays[view.essayId]; if(!sample){ toast("教練還沒連上。"); return; }
+  busy = true; const note = $("#revNote"); if(note) note.textContent = "教練正在讀你的作文，大約要半分鐘…";
+  const full = e.paras.map((p, i) => `第${i+1}段：${p.text}`).join("\n");
+  const prompt = `你是溫暖的國小作文老師。請用「三明治」方式評這篇${e.grade}年級的作文（繁體中文、台灣用語、對孩子說話的口氣）。
+題目：「${e.title}」（${e.type}）
+全文（系統精算 ${totalChars(e)} 字，目標 ${totalTarget(e)} 字）：
+${full}
+
+只回覆一個 JSON 物件，格式：
+{"praise":["2到3個具體優點，要引用她寫的句子"],"suggest":[{"point":"1到2個待加強，用商量語氣","example":"只改她原文中的一句做示範"}],"goal":"下次的一個小目標，一句話","stars":{${STAR_KEYS.map(k => `"${k}":1到5`).join(",")}},"newWords":["她這篇用得好的形容詞或詞語，最多6個，必須是原文裡出現的"]}`;
+  try{
+    const r = await sample.json(prompt, { modelTier:"default", cache:false });
+    const hen = countHen(full);
+    const fullNoSpace = full.replace(/\s/g, "");
+    const newWords = (Array.isArray(r.newWords) ? r.newWords : []).map(String).filter(w => w && fullNoSpace.includes(w));
+    e.result = { praise:[].concat(r.praise || []).map(String), suggest:[].concat(r.suggest || []).map(s => ({ point:String(s.point || ""), example:String(s.example || "") })), goal:String(r.goal || ""), stars:r.stars || {}, newWords, total:totalChars(e), hen, at:Date.now() };
+    const bank = store.profile.wordBank || [];
+    for(const w of newWords) if(!bank.find(x => x.word === w)) bank.push({ word:w, essayId:e.id, date:today() });
+    store.profile.wordBank = bank; saveProfile();
+  }catch(err){ toast(errMsg(err), 4000); }
+  finally{ busy = false; saveEssay(e); render(); }
+}
+
+function bindNew(){
+  const upd = () => { const per = +$("#nPer").value || 13, n = +$("#nParas").value; let lines = $("#nLines").value.split(/[,，、\s]+/).map(Number).filter(Boolean);
+    while(lines.length < n) lines.push(lines[lines.length - 1] || 8); lines = lines.slice(0, n);
+    $("#nHint").textContent = lines.map((l, i) => `第${i+1}段 ${l}行≈${l * per}字`).join("・") + `，共約 ${lines.reduce((s, l) => s + l * per, 0)} 字`; return { per, lines }; };
+  ["nPer","nParas","nLines"].forEach(id => $("#" + id).addEventListener("input", upd)); upd();
+  $("#newForm").onsubmit = ev => {
+    ev.preventDefault(); const { per, lines } = upd();
+    const e = { id:uid(), title:$("#nTitle").value.trim(), type:$("#nType").value, grade:+$("#nGrade").value, createdAt:Date.now(), updatedAt:Date.now(),
+      paras: lines.map(l => ({ target:l * per, idea:"", text:"", done:false })), chat:[], confirmed:[] };
+    if(!store.profile.grade){ store.profile.grade = e.grade; saveProfile(); }
+    saveEssay(e); view = { screen:"essay", essayId:e.id, tab:"coach" }; render();
+    askCoach(`（系統：孩子剛建立新作文，題目「${e.title}」。請先打招呼，然後用一個簡單的問題開始審題或想材料。）`, { hidden:true });
+  };
+}
+function bindParent(){
+  $("#profForm").onsubmit = ev => { ev.preventDefault(); Object.assign(store.profile, { name:$("#pName").value.trim(), grade:+$("#pGrade").value, tier:$("#pTier").value }); saveProfile(); toast("已儲存"); };
+}
+
+/* ---------- boot ---------- */
+lsLoad(); render();
+(async () => {
+  if(!window.claude?.use){ toast("請在 Claude 裡打開這個 APP，教練才能說話。", 5000); return; }
+  const [d, s, m] = await Promise.all([claude.use("db"), claude.use("sample"), claude.use("dictation")]);
+  db = d; sample = s; dict = m;
+  if(sample){ const lim = await sample.limits().catch(() => null); imgOK = !!lim?.images; }
+  await loadFromDb();
+  if(view.screen === "home" || view.screen === "parent") render();
+  else if(view.screen === "essay") renderTab();
+})();
+</script>
